@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Summit: Ascent & Web Progression</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .trail-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .node-card {
+      z-index: 10;
+      position: relative;
+      touch-action: none;
+    }
+    .node-card:hover {
+      transform: translateY(-2px);
+    }
+    .connect-handle {
+      cursor: grab;
+      user-select: none;
+    }
+    .connect-handle:active {
+      cursor: grabbing;
+    }
+    .target-hover-glow {
+      outline: 2px solid #10b981 !important;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4) !important;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-16 select-none">
+
+  <!-- TOP HEADER / INFINITE ELEVATION DASHBOARD -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-2xl">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+      
+      <!-- Brand & Hiker Summit Graphic -->
+      <div class="flex items-center gap-4">
+        <div class="relative bg-emerald-950/80 border border-emerald-500/40 p-3 rounded-2xl flex items-center justify-center">
+          <i class="fa-solid fa-person-hiking text-2xl text-emerald-400 animate-bounce"></i>
+          <span class="absolute -top-1 -right-1 flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          </span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-black tracking-wide text-white">SUMMIT</h1>
+            <span class="bg-slate-800 text-slate-400 text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-slate-700">Progress over Perfection</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5" id="user-display-name">Climber: Zach</p>
+        </div>
+      </div>
+
+      <!-- Infinite Altitude Gauge -->
+      <div class="flex items-center gap-6 bg-slate-950/80 border border-slate-800 px-5 py-2.5 rounded-2xl w-full md:w-auto justify-between">
+        <div class="text-left">
+          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Current Elevation</div>
+          <div class="text-xl font-black text-emerald-400" id="header-elevation">0 ft</div>
+        </div>
+        
+        <div class="w-32 bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700/50" title="Progress to next 1,000 ft altitude milestone">
+          <div id="header-elevation-bar" class="bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 h-full w-0 transition-all duration-500"></div>
+        </div>
+
+        <div class="text-right">
+          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Streak</div>
+          <div class="text-sm font-bold text-amber-400 flex items-center gap-1">
+            <i class="fa-solid fa-fire"></i> <span id="header-streak">0 Days</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs & Settings -->
+      <div class="flex items-center gap-2">
+        <button onclick="switchTab('ascent')" id="tab-btn-ascent" class="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white shadow-lg transition">
+          <i class="fa-solid fa-mountain mr-1"></i> Web Map
+        </button>
+        <button onclick="switchTab('basecamp')" id="tab-btn-basecamp" class="px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition">
+          <i class="fa-solid fa-campground mr-1"></i> Base Camp Feed
+        </button>
+        <button onclick="openSettingsModal()" class="p-2 text-xs font-bold rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition">
+          <i class="fa-solid fa-gear text-sm"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 mt-8">
+
+    <!-- VIEW 1: WEB MAP (TIERED GOAL GRID & JOURNAL) -->
+    <div id="view-ascent" class="space-y-8">
+      
+      <!-- Goal Map Header & Climber Selector -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-network-wired text-emerald-400"></i> Progression Web Grid
+          </h2>
+          <p class="text-xs text-slate-400">Drag the green arrow handle from any node to drop onto higher goals and create connected web paths.</p>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-between">
+          <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
+            <i class="fa-solid fa-user-gear text-xs text-emerald-400"></i>
+            <label for="climber-selector" class="text-xs text-slate-400 font-semibold">Viewing Trail:</label>
+            <select id="climber-selector" onchange="changeActiveClimber(this.value)" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer">
+              <option value="user_self" class="bg-slate-900">Zach (You)</option>
+              <option value="sarah" class="bg-slate-900">Sarah</option>
+              <option value="alex" class="bg-slate-900">Alex</option>
+            </select>
+          </div>
+
+          <button id="add-summit-btn" onclick="openAddModal(null)" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-lg flex items-center gap-2">
+            <i class="fa-solid fa-plus"></i> Add Summit Goal
+          </button>
+        </div>
+      </div>
+
+      <!-- Read-Only Banner -->
+      <div id="readonly-banner" class="hidden bg-indigo-950/80 border border-indigo-500/50 p-3 rounded-2xl text-center text-xs text-indigo-200">
+        <i class="fa-solid fa-eye mr-2 text-indigo-400"></i> You are inspecting <strong id="readonly-username" class="text-white">Sarah</strong>'s Goal Web in read-only mode.
+      </div>
+
+      <!-- Dynamic Tier-based Web Canvas -->
+      <div class="relative bg-slate-900/30 border border-slate-800/80 rounded-3xl p-6 md:p-10 min-h-[550px] flex flex-col items-center overflow-x-auto" id="tree-canvas">
+        
+        <!-- Side-by-Side Summit Tabs -->
+        <div id="summit-tabs-bar" class="flex items-center gap-3 overflow-x-auto no-scrollbar w-full border-b border-slate-800/80 pb-4 mb-8 z-10"></div>
+
+        <!-- SVG canvas with directional arrowhead definitions -->
+        <svg class="trail-svg" id="trail-svg-canvas">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+            </marker>
+          </defs>
+        </svg>
+        
+        <!-- TIER LAYERS CONTAINER -->
+        <div id="tree-node-root" class="w-full flex flex-col items-center space-y-12"></div>
+      </div>
+
+      <!-- Daily Journal Section -->
+      <section class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-book-open text-indigo-400"></i> Daily Base Camp Journal
+          </h3>
+          <span class="text-xs text-slate-500" id="journal-date-label">Today</span>
+        </div>
+        <p class="text-xs text-slate-400 mb-4">Focus on continuous growth. Share your thoughts, struggles, and progress made today.</p>
+        
+        <textarea id="daily-journal-input" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors" placeholder="What progress did you make today? How do you feel on your climb?"></textarea>
+        
+        <div class="mt-3 flex justify-between items-center">
+          <span id="journal-status" class="text-xs text-slate-500">Auto-saved to local state</span>
+          <button id="save-journal-btn" onclick="saveDailyJournal()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition shadow-md">
+            Save Reflection
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- VIEW 2: BASE CAMP SOCIAL FEED -->
+    <div id="view-basecamp" class="hidden space-y-6">
+      <div class="bg-slate-900/60 p-6 rounded-2xl border border-slate-800">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-users text-blue-400"></i> Base Camp Community Feed
+        </h2>
+        <p class="text-xs text-slate-400 mt-1">See how your friends are progressing along their trails today and inspect their goal trees.</p>
+      </div>
+
+      <div id="basecamp-feed-list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: ADD / EDIT NODE -->
+  <div id="node-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white" id="modal-title">Add Goal / Task Node</h3>
+        <button onclick="closeModal('node-modal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <input type="hidden" id="modal-parent-id">
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Title</label>
+        <input type="text" id="modal-input-title" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="e.g., Book 1: Gospel Principles">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Description / Principle</label>
+        <textarea id="modal-input-desc" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="Why does this matter on your ascent?"></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Node Level Type</label>
+          <select id="modal-input-type" onchange="toggleNodeFields()" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-emerald-500">
+            <option value="purpose">Overarching Summit</option>
+            <option value="milestone">Milestone / Sub-Goal</option>
+            <option value="habit">Daily Habit Task</option>
+          </select>
+        </div>
+
+        <div id="field-target-container">
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Target Goal (Number)</label>
+          <input type="number" id="modal-input-target" value="100" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-3 border-t border-slate-800">
+        <button onclick="closeModal('node-modal')" class="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">Cancel</button>
+        <button onclick="saveNodeModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition">Save Node</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SETTINGS & GIST SYNC -->
+  <div id="settings-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="text-base font-bold text-white"><i class="fa-brands fa-github text-emerald-400 mr-2"></i> GitHub Sync & Group Config</h3>
+        <button onclick="closeModal('settings-modal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Your Name / Handle</label>
+        <input type="text" id="setting-username" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">GitHub Personal Access Token (PAT)</label>
+        <input type="password" id="setting-github-pat" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="ghp_xxxxxxxxxxxx">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Your Personal Gist ID</label>
+        <input type="text" id="setting-user-gist-id" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-emerald-500" placeholder="e.g. 8f4b2c1a0d">
+      </div>
+
+      <div class="flex justify-between items-center pt-3 border-t border-slate-800">
+        <button onclick="syncWithGist()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-1">
+          <i class="fa-solid fa-rotate"></i> Sync Gist Now
+        </button>
+        <button onclick="saveSettings()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition">
+          Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT ENGINE -->
+  <script>
+    // GROUP GIST REGISTRY (Paste your friends' Public Gist IDs here so everyone auto-loads them)
+    const GROUP_GIST_IDS = [
+      // "8f4b2c1a0d3e...", // Zach's Gist ID
+      // "9a8b7c6d5e4f...", // Sarah's Gist ID
+      // "1a2b3c4d5e6f...", // Alex's Gist ID
+    ];
+
+    // DEFAULT INITIAL STATE (ZACH)
+    const myDefaultState = {
+      user: { name: "Zach", pat: "", gistId: "" },
+      elevation: 3400,
+      streak: 12,
+      dailyNotes: { "2026-08-02": "Sketched 2 pages today at the park! Focused on gesture drawing." },
+      nodes: [
+        { id: "node-1", parentIds: [], title: "Master Concept Artist", desc: "Develop mastery over visual storytelling.", type: "purpose", current: 0, target: 100 },
+        { id: "node-2", parentIds: ["node-1"], title: "Fill 100 Sketchbooks in 10 Years", desc: "Building muscle memory.", type: "milestone", current: 12, target: 100 },
+        { id: "node-2-b", parentIds: ["node-1"], title: "Master Anatomy & Figures", desc: "Study 50 master draftsmanship studies.", type: "milestone", current: 18, target: 50 },
+        { id: "node-3", parentIds: ["node-2"], title: "Complete 1 Sketchbook per Month", desc: "Consistent practice rhythm.", type: "milestone", current: 24, target: 50 },
+        { id: "node-3-b", parentIds: ["node-2-b"], title: "Head & Hand Studies", desc: "Complex landmark construction.", type: "milestone", current: 5, target: 10 },
+        { id: "node-4", parentIds: ["node-3"], title: "Daily Habit: Draw 2 Pages", desc: "Keep pencils moving daily.", type: "habit", current: 2, target: 2, completedToday: false },
+        { id: "node-4-b", parentIds: ["node-3-b"], title: "Daily Habit: 30 Min Gesture", desc: "Quick timed poses.", type: "habit", current: 1, target: 1, completedToday: true },
+
+        { id: "node-spirit-1", parentIds: [], title: "Be Highly In Tune with God", desc: "Aligning daily actions with gospel principles.", type: "purpose", current: 0, target: 100 },
+        { id: "node-spirit-2", parentIds: ["node-spirit-1"], title: "Write 3 Books on Gospel Principles", desc: "Gospel of Jesus Christ focus.", type: "milestone", current: 0, target: 3 },
+        { id: "node-spirit-2-1", parentIds: ["node-spirit-2"], title: "Book 1: Principles of Faith", desc: "First manuscript.", type: "milestone", current: 4, target: 10 },
+        { id: "node-spirit-2-2", parentIds: ["node-spirit-2"], title: "Book 2: Covenants & Grace", desc: "Second manuscript.", type: "milestone", current: 1, target: 10 },
+        { id: "node-spirit-2-3", parentIds: ["node-spirit-2"], title: "Book 3: Light & Truth", desc: "Third manuscript.", type: "milestone", current: 0, target: 10 },
+        { id: "node-spirit-habit", parentIds: ["node-spirit-2-1"], title: "Daily Scripture Study", desc: "15 minutes every morning.", type: "habit", current: 1, target: 1, completedToday: true }
+      ]
+    };
+
+    // MOCK DATA FOR FRIENDS' TREES (FALLBACK UNTIL GISTS LOAD)
+    const communityData = {
+      'user_self': JSON.parse(localStorage.getItem('summit_app_state')) || myDefaultState,
+      'sarah': {
+        user: { name: "Sarah" },
+        elevation: 14200,
+        streak: 8,
+        dailyNotes: { "2026-08-02": "Spent 20 minutes in morning meditation and prayer. Felt spiritual clarity." },
+        nodes: [
+          { id: "s1", parentIds: [], title: "Be Highly In Tune with God", desc: "Deepening spiritual walk and understanding.", type: "purpose", current: 0, target: 100 },
+          { id: "s2", parentIds: ["s1"], title: "Write 3 Books on Gospel Principles", desc: "Sharing key spiritual teachings.", type: "milestone", current: 1, target: 3 },
+          { id: "s2-1", parentIds: ["s2"], title: "Book 1: Faith & Foundation", desc: "First manuscript draft.", type: "milestone", current: 8, target: 10 },
+          { id: "s2-2", parentIds: ["s2"], title: "Book 2: Grace & Covenant", desc: "Outline and scripture study.", type: "milestone", current: 2, target: 10 },
+          { id: "s2-3", parentIds: ["s2"], title: "Book 3: Light & Revelation", desc: "Concept research.", type: "milestone", current: 0, target: 10 },
+          { id: "s3", parentIds: ["s2-1"], title: "Daily Habit: Write 500 Words", desc: "Write daily without over-editing.", type: "habit", current: 500, target: 500, completedToday: true }
+        ]
+      },
+      'alex': {
+        user: { name: "Alex" },
+        elevation: 25800,
+        streak: 19,
+        dailyNotes: { "2026-08-02": "Rest day today. Hydrating and preparing for tomorrow's long trail run." },
+        nodes: [
+          { id: "a1", parentIds: [], title: "Be Highly Skilled in Endurance", desc: "Mastering mental and physical stamina.", type: "purpose", current: 0, target: 100 },
+          { id: "a2", parentIds: ["a1"], title: "Run 500 Miles this Year", desc: "Consistent cardio progression.", type: "milestone", current: 240, target: 500 },
+          { id: "a3", parentIds: ["a2"], title: "Daily Habit: Run 3 Miles", desc: "Morning trail run.", type: "habit", current: 3, target: 3, completedToday: true }
+        ]
+      }
+    };
+
+    let activeClimberId = 'user_self';
+    let activeSummitId = null;
+
+    // DRAG-TO-CONNECT ENGINE STATE
+    let isConnectingDrag = false;
+    let connectSourceId = null;
+    let tempPathElement = null;
+
+    function getNodeParents(node) {
+      if (Array.isArray(node.parentIds)) return node.parentIds;
+      if (node.parentId) return [node.parentId];
+      return [];
+    }
+
+    // INITIALIZATION & AUTOLOAD
+    window.addEventListener('DOMContentLoaded', async () => {
+      renderHeader();
+      renderTree();
+      renderJournal();
+
+      await loadLiveGroupGists();
+      
+      window.addEventListener('resize', drawConnectingTrails);
+      window.addEventListener('pointermove', onConnectionPointerMove);
+      window.addEventListener('pointerup', onConnectionPointerUp);
+    });
+
+    // LOAD ALL GROUP PUBLIC GISTS IN PARALLEL
+    async function loadLiveGroupGists() {
+      const allGistIds = [...GROUP_GIST_IDS];
+      const userGistId = communityData['user_self']?.user?.gistId;
+      if (userGistId && !allGistIds.includes(userGistId)) {
+        allGistIds.push(userGistId);
+      }
+
+      for (const gistId of allGistIds) {
+        if (!gistId) continue;
+        try {
+          const res = await fetch(`https://api.github.com/gists/${gistId}`);
+          if (res.ok) {
+            const data = await res.json();
+            const file = data.files['summit_data.json'];
+            if (file && file.content) {
+              const parsedData = JSON.parse(file.content);
+              const memberKey = parsedData.user.name.toLowerCase().replace(/\s+/g, '_');
+              
+              if (memberKey !== 'user_self') {
+                communityData[memberKey] = parsedData;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(`Could not load Gist ${gistId}:`, e);
+        }
+      }
+
+      renderHeader();
+      renderTree();
+      renderBaseCampFeed();
+    }
+
+    function getActiveState() {
+      return communityData[activeClimberId];
+    }
+
+    function changeActiveClimber(climberId) {
+      activeClimberId = climberId;
+      activeSummitId = null;
+      document.getElementById('climber-selector').value = climberId;
+
+      const isReadOnly = activeClimberId !== 'user_self';
+      const state = getActiveState();
+
+      document.getElementById('readonly-banner').classList.toggle('hidden', !isReadOnly);
+      if (isReadOnly) {
+        document.getElementById('readonly-username').innerText = state.user.name;
+      }
+
+      document.getElementById('add-summit-btn').classList.toggle('hidden', isReadOnly);
+      document.getElementById('save-journal-btn').classList.toggle('hidden', isReadOnly);
+      document.getElementById('daily-journal-input').readOnly = isReadOnly;
+
+      renderHeader();
+      renderTree();
+      renderJournal();
+    }
+
+    function switchTab(tab) {
+      const ascentView = document.getElementById('view-ascent');
+      const basecampView = document.getElementById('view-basecamp');
+      const btnAscent = document.getElementById('tab-btn-ascent');
+      const btnBasecamp = document.getElementById('tab-btn-basecamp');
+
+      if (tab === 'ascent') {
+        ascentView.classList.remove('hidden');
+        basecampView.classList.add('hidden');
+        btnAscent.className = "px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white shadow-lg transition";
+        btnBasecamp.className = "px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition";
+        setTimeout(drawConnectingTrails, 100);
+      } else {
+        ascentView.classList.add('hidden');
+        basecampView.classList.remove('hidden');
+        btnBasecamp.className = "px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 text-white shadow-lg transition";
+        btnAscent.className = "px-4 py-2 text-xs font-bold rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition";
+        renderBaseCampFeed();
+      }
+    }
+
+    function inspectMemberTree(memberId) {
+      changeActiveClimber(memberId);
+      switchTab('ascent');
+    }
+
+    // HEADER RENDERER
+    function renderHeader() {
+      const state = getActiveState();
+      document.getElementById('user-display-name').innerText = `Climber: ${state.user.name} ${activeClimberId === 'user_self' ? '(You)' : ''}`;
+      document.getElementById('header-elevation').innerText = `${state.elevation.toLocaleString()} ft`;
+      document.getElementById('header-streak').innerText = `${state.streak} Days`;
+      
+      const pct = (state.elevation % 1000) / 10;
+      document.getElementById('header-elevation-bar').style.width = `${pct}%`;
+    }
+
+    // RENDER HORIZONTAL DEPTH-TIER WEB GRID
+    function renderTree() {
+      const state = getActiveState();
+      const rootNodes = state.nodes.filter(n => getNodeParents(n).length === 0);
+      const tabsBar = document.getElementById('summit-tabs-bar');
+      const container = document.getElementById('tree-node-root');
+
+      tabsBar.innerHTML = '';
+      container.innerHTML = '';
+
+      if (rootNodes.length === 0) {
+        tabsBar.innerHTML = `<span class="text-xs text-slate-500 italic">No summit goals created yet.</span>`;
+        container.innerHTML = `<div class="text-center text-slate-500 py-12"><p>No goals on this skyline yet. Click "+ Add Summit Goal" to begin!</p></div>`;
+        return;
+      }
+
+      if (!activeSummitId || !rootNodes.some(r => r.id === activeSummitId)) {
+        activeSummitId = rootNodes[0].id;
+      }
+
+      // Render Summit Tabs
+      rootNodes.forEach(root => {
+        const isActive = root.id === activeSummitId;
+        const tabBtn = document.createElement('button');
+        tabBtn.className = `px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+          isActive 
+            ? 'bg-emerald-600 text-white shadow-lg border border-emerald-500/50' 
+            : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700/50'
+        }`;
+        tabBtn.innerHTML = `<i class="fa-solid fa-mountain text-[10px]"></i> ${root.title}`;
+        tabBtn.onclick = () => {
+          activeSummitId = root.id;
+          renderTree();
+        };
+        tabsBar.appendChild(tabBtn);
+      });
+
+      // COMPUTE NODE DEPTHS FOR WEB TIER GRID
+      const nodeDepthMap = {};
+      function calculateDepths(id, depth) {
+        if (nodeDepthMap[id] !== undefined && nodeDepthMap[id] >= depth) return;
+        nodeDepthMap[id] = depth;
+        
+        const children = state.nodes.filter(n => getNodeParents(n).includes(id));
+        children.forEach(c => calculateDepths(c.id, depth + 1));
+      }
+      calculateDepths(activeSummitId, 0);
+
+      const tiers = {};
+      Object.keys(nodeDepthMap).forEach(nodeId => {
+        const depth = nodeDepthMap[nodeId];
+        if (!tiers[depth]) tiers[depth] = [];
+        const nodeObj = state.nodes.find(n => n.id === nodeId);
+        if (nodeObj) tiers[depth].push(nodeObj);
+      });
+
+      const tierKeys = Object.keys(tiers).map(Number).sort((a, b) => a - b);
+      
+      tierKeys.forEach(depth => {
+        const tierRow = document.createElement('div');
+        tierRow.className = "w-full flex flex-col items-center relative";
+
+        let stratumName = "Base Camp Habits";
+        if (depth === 0) stratumName = "Summit Peak";
+        else if (depth === 1) stratumName = "Overarching Principles & Milestones";
+        else if (depth === 2) stratumName = "Sub-Patterns & Checkpoints";
+
+        const stratumBadge = document.createElement('div');
+        stratumBadge.className = "text-[10px] uppercase font-extrabold tracking-widest text-slate-500 bg-slate-900/90 border border-slate-800 px-3 py-1 rounded-full mb-4 shadow-sm z-10";
+        stratumBadge.innerText = `Tier ${depth}: ${stratumName}`;
+        tierRow.appendChild(stratumBadge);
+
+        const nodesFlexRow = document.createElement('div');
+        nodesFlexRow.className = "flex flex-row flex-wrap justify-center items-stretch gap-6 w-full z-10";
+
+        tiers[depth].forEach(node => {
+          nodesFlexRow.appendChild(buildCardElement(node));
+        });
+
+        tierRow.appendChild(nodesFlexRow);
+        container.appendChild(tierRow);
+      });
+
+      setTimeout(drawConnectingTrails, 100);
+    }
+
+    function buildCardElement(node) {
+      const isReadOnly = activeClimberId !== 'user_self';
+
+      const card = document.createElement('div');
+      card.id = `card-${node.id}`;
+      card.dataset.nodeId = node.id;
+      card.className = "node-card w-72 sm:w-80 p-5 rounded-2xl flex flex-col justify-between space-y-3 shrink-0 transition-all duration-200 ";
+
+      let typeBadge = `<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider">Summit Goal</span>`;
+      let cardBorder = "border-2 border-emerald-500/60 bg-slate-900 shadow-emerald-950/40 shadow-xl";
+      let icon = `<i class="fa-solid fa-mountain text-emerald-400"></i>`;
+
+      if (node.type === 'milestone') {
+        typeBadge = `<span class="bg-blue-950 text-blue-400 border border-blue-800 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider">Milestone Checkpoint</span>`;
+        cardBorder = "border border-slate-700 bg-slate-900/90 shadow-lg";
+        icon = `<i class="fa-solid fa-flag text-blue-400"></i>`;
+      } else if (node.type === 'habit') {
+        typeBadge = `<span class="bg-indigo-950 text-indigo-400 border border-indigo-800 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wider">Base Camp Habit</span>`;
+        cardBorder = "border-2 border-indigo-500/50 bg-slate-950 shadow-indigo-950/40 shadow-xl";
+        icon = `<i class="fa-solid fa-person-running text-indigo-400"></i>`;
+      }
+
+      card.className += cardBorder;
+
+      let actionControls = '';
+      if (node.type === 'habit') {
+        const isChecked = node.completedToday;
+        actionControls = `
+          <div class="mt-2 flex items-center justify-between border-t border-slate-800 pt-3">
+            <button ${isReadOnly ? 'disabled' : `onclick="toggleHabit('${node.id}')"`} class="flex items-center gap-2 ${isChecked ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'} text-xs font-bold px-3 py-2 rounded-xl transition ${isReadOnly ? 'opacity-70 cursor-not-allowed' : ''}">
+              <i class="fa-solid ${isChecked ? 'fa-square-check' : 'fa-square'}"></i> ${isChecked ? 'Done Today (+100ft)' : 'Mark Completed'}
+            </button>
+            <span class="text-xs font-mono text-emerald-400 font-bold">${node.current}/${node.target}</span>
+          </div>
+        `;
+      } else if (node.type === 'milestone') {
+        actionControls = `
+          <div class="mt-2 flex items-center justify-between border-t border-slate-800 pt-3">
+            ${!isReadOnly ? `
+              <div class="flex items-center gap-1">
+                <button onclick="incrementNode('${node.id}', 1)" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-black px-2.5 py-1 rounded-lg border border-slate-700 transition">+1</button>
+                <button onclick="incrementNode('${node.id}', 5)" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-black px-2.5 py-1 rounded-lg border border-slate-700 transition">+5</button>
+              </div>
+            ` : '<div></div>'}
+            <span class="text-xs font-mono text-slate-300 font-bold">${node.current} / ${node.target}</span>
+          </div>
+          <div class="w-full bg-slate-950 h-2 rounded-full overflow-hidden mt-2 border border-slate-800">
+            <div class="bg-blue-500 h-full transition-all duration-300" style="width: ${Math.min((node.current / node.target) * 100, 100)}%"></div>
+          </div>
+        `;
+      }
+
+      const dragHandleHtml = !isReadOnly ? `
+        <div onpointerdown="startConnectionDrag(event, '${node.id}')" class="connect-handle flex items-center justify-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/40 px-2.5 py-1 rounded-lg transition shadow-sm">
+          <i class="fa-solid fa-arrow-up"></i> Drag Arrow to Connect
+        </div>
+      ` : '';
+
+      card.innerHTML = `
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              ${icon}
+              ${typeBadge}
+            </div>
+            ${!isReadOnly ? `
+              <div class="flex items-center gap-1 text-slate-400 text-xs">
+                <button onclick="openAddModal('${node.id}')" title="Add Branch Node" class="hover:text-emerald-400 p-1"><i class="fa-solid fa-circle-plus"></i></button>
+                <button onclick="deleteNode('${node.id}')" title="Delete Node" class="hover:text-rose-400 p-1"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            ` : ''}
+          </div>
+
+          <h3 class="text-sm font-bold text-white mt-1">${node.title}</h3>
+          ${node.desc ? `<p class="text-xs text-slate-400">${node.desc}</p>` : ''}
+        </div>
+
+        <div class="space-y-2">
+          ${dragHandleHtml}
+          ${actionControls}
+        </div>
+      `;
+
+      return card;
+    }
+
+    // INTERACTIVE DRAG-TO-CONNECT ARROW SYSTEM
+    function startConnectionDrag(e, nodeId) {
+      e.stopPropagation();
+      e.preventDefault();
+
+      if (activeClimberId !== 'user_self') return;
+
+      isConnectingDrag = true;
+      connectSourceId = nodeId;
+
+      const svg = document.getElementById('trail-svg-canvas');
+      tempPathElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      tempPathElement.setAttribute("stroke", "#10b981");
+      tempPathElement.setAttribute("stroke-width", "3.5");
+      tempPathElement.setAttribute("stroke-dasharray", "4,4");
+      tempPathElement.setAttribute("fill", "none");
+      tempPathElement.setAttribute("marker-end", "url(#arrow)");
+      svg.appendChild(tempPathElement);
+
+      onConnectionPointerMove(e);
+    }
+
+    function onConnectionPointerMove(e) {
+      if (!isConnectingDrag || !tempPathElement) return;
+
+      const container = document.getElementById('tree-canvas');
+      const rectBounds = container.getBoundingClientRect();
+      const sourceCard = document.getElementById(`card-${connectSourceId}`);
+
+      if (!sourceCard) return;
+
+      const sRect = sourceCard.getBoundingClientRect();
+      const startX = sRect.left + sRect.width / 2 - rectBounds.left;
+      const startY = sRect.top - rectBounds.top;
+
+      const currentX = e.clientX - rectBounds.left;
+      const currentY = e.clientY - rectBounds.top;
+
+      const controlY1 = startY + (currentY - startY) * 0.5;
+      const controlY2 = startY + (currentY - startY) * 0.5;
+
+      const d = `M ${startX} ${startY} C ${startX} ${controlY1}, ${currentX} ${controlY2}, ${currentX} ${currentY}`;
+      tempPathElement.setAttribute("d", d);
+
+      document.querySelectorAll('.node-card').forEach(card => {
+        const cRect = card.getBoundingClientRect();
+        if (e.clientX >= cRect.left && e.clientX <= cRect.right &&
+            e.clientY >= cRect.top && e.clientY <= cRect.bottom &&
+            card.dataset.nodeId !== connectSourceId) {
+          card.classList.add('target-hover-glow');
+        } else {
+          card.classList.remove('target-hover-glow');
+        }
+      });
+    }
+
+    function onConnectionPointerUp(e) {
+      if (!isConnectingDrag) return;
+
+      document.querySelectorAll('.node-card').forEach(card => card.classList.remove('target-hover-glow'));
+
+      if (tempPathElement) {
+        tempPathElement.remove();
+        tempPathElement = null;
+      }
+
+      const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
+      const targetCard = elementsAtPoint.find(el => el.classList && el.classList.contains('node-card'));
+
+      if (targetCard) {
+        const targetNodeId = targetCard.dataset.nodeId;
+        if (targetNodeId && targetNodeId !== connectSourceId) {
+          linkNodes(connectSourceId, targetNodeId);
+        }
+      }
+
+      isConnectingDrag = false;
+      connectSourceId = null;
+    }
+
+    function linkNodes(childId, targetParentId) {
+      const state = getActiveState();
+      const child = state.nodes.find(n => n.id === childId);
+      if (!child) return;
+
+      if (!child.parentIds) {
+        child.parentIds = child.parentId ? [child.parentId] : [];
+      }
+
+      if (!child.parentIds.includes(targetParentId)) {
+        child.parentIds.push(targetParentId);
+        saveAndRefresh();
+      }
+    }
+
+    // DRAW WAVY CONNECTING TRAILS
+    function drawConnectingTrails() {
+      const svg = document.getElementById('trail-svg-canvas');
+      const container = document.getElementById('tree-canvas');
+      if (!svg || !container) return;
+
+      const rectBounds = container.getBoundingClientRect();
+      
+      const defs = svg.querySelector('defs');
+      svg.innerHTML = '';
+      if (defs) svg.appendChild(defs);
+
+      const state = getActiveState();
+
+      state.nodes.forEach(node => {
+        const parents = getNodeParents(node);
+        parents.forEach(parentId => {
+          const parentCard = document.getElementById(`card-${parentId}`);
+          const childCard = document.getElementById(`card-${node.id}`);
+
+          if (parentCard && childCard) {
+            const pRect = parentCard.getBoundingClientRect();
+            const cRect = childCard.getBoundingClientRect();
+
+            const startX = cRect.left + cRect.width / 2 - rectBounds.left;
+            const startY = cRect.top - rectBounds.top;
+            const endX = pRect.left + pRect.width / 2 - rectBounds.left;
+            const endY = pRect.bottom - rectBounds.top;
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            const controlY1 = startY + (endY - startY) * 0.5;
+            const controlY2 = startY + (endY - startY) * 0.5;
+
+            const d = `M ${startX} ${startY} C ${startX} ${controlY1}, ${endX} ${controlY2}, ${endX} ${endY}`;
+            
+            path.setAttribute("d", d);
+            path.setAttribute("stroke", "#10b981");
+            path.setAttribute("stroke-width", "2.5");
+            path.setAttribute("stroke-dasharray", "5,5");
+            path.setAttribute("fill", "none");
+            path.setAttribute("opacity", "0.75");
+            path.setAttribute("marker-end", "url(#arrow)");
+
+            svg.appendChild(path);
+          }
+        });
+      });
+    }
+
+    // HABIT & INCREMENT INTERACTIONS
+    function toggleHabit(nodeId) {
+      if (activeClimberId !== 'user_self') return;
+      const state = getActiveState();
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+
+      node.completedToday = !node.completedToday;
+      if (node.completedToday) {
+        node.current += 1;
+        state.elevation += 100;
+      } else {
+        node.current = Math.max(0, node.current - 1);
+        state.elevation = Math.max(0, state.elevation - 100);
+      }
+
+      saveAndRefresh();
+    }
+
+    function incrementNode(nodeId, amount) {
+      if (activeClimberId !== 'user_self') return;
+      const state = getActiveState();
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+
+      node.current += amount;
+      state.elevation += (amount * 50);
+      saveAndRefresh();
+    }
+
+    // MODAL & NODE CREATION
+    function openAddModal(parentId) {
+      document.getElementById('modal-parent-id').value = parentId || '';
+      document.getElementById('modal-input-title').value = '';
+      document.getElementById('modal-input-desc').value = '';
+      document.getElementById('modal-title').innerText = parentId ? "Add Sub-Layer Node" : "Add Summit Goal";
+      document.getElementById('node-modal').classList.remove('hidden');
+      document.getElementById('node-modal').classList.add('flex');
+    }
+
+    function toggleNodeFields() {
+      const type = document.getElementById('modal-input-type').value;
+      document.getElementById('field-target-container').style.display = type === 'purpose' ? 'none' : 'block';
+    }
+
+    function saveNodeModal() {
+      const state = getActiveState();
+      const parentId = document.getElementById('modal-parent-id').value || null;
+      const title = document.getElementById('modal-input-title').value.trim();
+      const desc = document.getElementById('modal-input-desc').value.trim();
+      const type = document.getElementById('modal-input-type').value;
+      const target = parseInt(document.getElementById('modal-input-target').value) || 100;
+
+      if (!title) return alert("Please enter a title.");
+
+      const newNode = {
+        id: "node-" + Date.now(),
+        parentIds: parentId ? [parentId] : [],
+        title: title,
+        desc: desc,
+        type: type,
+        current: 0,
+        target: target,
+        completedToday: false
+      };
+
+      state.nodes.push(newNode);
+      
+      if (!parentId) {
+        activeSummitId = newNode.id;
+      }
+
+      closeModal('node-modal');
+      saveAndRefresh();
+    }
+
+    function deleteNode(nodeId) {
+      if (!confirm("Remove this node and its sub-branches?")) return;
+      const state = getActiveState();
+      state.nodes = state.nodes.filter(n => n.id !== nodeId && !getNodeParents(n).includes(nodeId));
+      saveAndRefresh();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
+    }
+
+    // JOURNALING
+    function renderJournal() {
+      const state = getActiveState();
+      const dateKey = new Date().toISOString().split('T')[0];
+      document.getElementById('daily-journal-input').value = state.dailyNotes[dateKey] || "";
+      document.getElementById('journal-date-label').innerText = dateKey;
+    }
+
+    function saveDailyJournal() {
+      if (activeClimberId !== 'user_self') return;
+      const state = getActiveState();
+      const dateKey = new Date().toISOString().split('T')[0];
+      const text = document.getElementById('daily-journal-input').value.trim();
+      state.dailyNotes[dateKey] = text;
+      
+      const status = document.getElementById('journal-status');
+      status.innerText = "Saved!";
+      status.className = "text-xs text-emerald-400 font-bold";
+      setTimeout(() => {
+        status.innerText = "Auto-saved to local state";
+        status.className = "text-xs text-slate-500";
+      }, 2000);
+
+      saveAndRefresh();
+    }
+
+    // BASE CAMP COMMUNITY FEED WITH "TODAY'S ACCOMPLISHMENTS"
+    function renderBaseCampFeed() {
+      const feed = document.getElementById('basecamp-feed-list');
+      feed.innerHTML = '';
+
+      Object.keys(communityData).forEach(key => {
+        const member = communityData[key];
+        const dateKey = new Date().toISOString().split('T')[0];
+        const note = member.dailyNotes[dateKey] || "Climbing steady today.";
+
+        const completedHabits = member.nodes.filter(n => n.type === 'habit' && n.completedToday);
+        const progressedMilestones = member.nodes.filter(n => n.type === 'milestone' && n.current > 0);
+
+        let accomplishmentsHtml = '';
+        if (completedHabits.length > 0 || progressedMilestones.length > 0) {
+          accomplishmentsHtml += '<div class="space-y-1.5">';
+          
+          completedHabits.forEach(h => {
+            accomplishmentsHtml += `
+              <div class="flex items-center gap-2 text-xs bg-emerald-950/70 border border-emerald-500/30 text-emerald-300 px-3 py-1.5 rounded-xl">
+                <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                <span class="font-bold">${h.title}</span>
+                <span class="text-[10px] text-emerald-400 font-mono ml-auto">+100 ft</span>
+              </div>
+            `;
+          });
+
+          progressedMilestones.slice(0, 2).forEach(m => {
+            accomplishmentsHtml += `
+              <div class="flex items-center gap-2 text-xs bg-blue-950/70 border border-blue-500/30 text-blue-300 px-3 py-1.5 rounded-xl">
+                <i class="fa-solid fa-chart-line text-blue-400"></i>
+                <span class="font-bold">${m.title}</span>
+                <span class="text-[10px] text-blue-400 font-mono ml-auto">${m.current}/${m.target}</span>
+              </div>
+            `;
+          });
+
+          accomplishmentsHtml += '</div>';
+        } else {
+          accomplishmentsHtml = `<p class="text-xs text-slate-500 italic">No tasks completed yet today.</p>`;
+        }
+
+        const card = document.createElement('div');
+        card.className = "bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4 flex flex-col justify-between";
+        card.innerHTML = `
+          <div class="space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+              <div class="flex items-center gap-3">
+                <div class="bg-slate-800 p-2.5 rounded-2xl border border-slate-700">
+                  <i class="fa-solid fa-person-hiking text-emerald-400"></i>
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-white">${member.user.name} ${key === 'user_self' ? '(You)' : ''}</h4>
+                  <div class="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                    <span class="text-emerald-400 font-bold">${member.elevation.toLocaleString()} ft</span> • 
+                    <span class="text-amber-400 font-bold"><i class="fa-solid fa-fire"></i> ${member.streak} Days</span>
+                  </div>
+                </div>
+              </div>
+              
+              <span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                ✓ Active Today
+              </span>
+            </div>
+
+            <div>
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Today's Accomplishments 🎯</span>
+              ${accomplishmentsHtml}
+            </div>
+
+            <div class="bg-slate-950 border border-slate-800/80 p-4 rounded-2xl">
+              <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider block mb-1">Daily Reflection</span>
+              <p class="text-xs text-slate-300 italic">"${note}"</p>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800/60 flex justify-between items-center">
+            <span class="text-[10px] text-slate-500 font-bold uppercase">${member.nodes.length} Nodes Mapped</span>
+            <button onclick="inspectMemberTree('${key}')" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold px-4 py-2 rounded-xl transition flex items-center gap-2 border border-slate-700">
+              View Goal Web <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </button>
+          </div>
+        `;
+        feed.appendChild(card);
+      });
+    }
+
+    // SETTINGS & GIST SYNC
+    function openSettingsModal() {
+      const state = communityData['user_self'];
+      document.getElementById('setting-username').value = state.user.name || "";
+      document.getElementById('setting-github-pat').value = state.user.pat || "";
+      document.getElementById('setting-user-gist-id').value = state.user.gistId || "";
+      document.getElementById('settings-modal').classList.remove('hidden');
+      document.getElementById('settings-modal').classList.add('flex');
+    }
+
+    function saveSettings() {
+      const state = communityData['user_self'];
+      state.user.name = document.getElementById('setting-username').value.trim();
+      state.user.pat = document.getElementById('setting-github-pat').value.trim();
+      state.user.gistId = document.getElementById('setting-user-gist-id').value.trim();
+
+      closeModal('settings-modal');
+      saveAndRefresh();
+    }
+
+    async function syncWithGist() {
+      const state = communityData['user_self'];
+      if (!state.user.pat || !state.user.gistId) {
+        return alert("Please enter both your Personal Access Token (PAT) and Gist ID in Settings.");
+      }
+
+      try {
+        const response = await fetch(`https://api.github.com/gists/${state.user.gistId}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `token ${state.user.pat}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            files: { 
+              "summit_data.json": { content: JSON.stringify(state, null, 2) } 
+            }
+          })
+        });
+
+        if (response.ok) {
+          alert("Successfully published your progress to GitHub!");
+          await loadLiveGroupGists();
+        } else {
+          alert("Gist sync failed. Double-check your Personal Access Token permissions.");
+        }
+      } catch (err) {
+        alert("Error connecting to GitHub API.");
+      }
+    }
+
+    function saveAndRefresh() {
+      localStorage.setItem('summit_app_state', JSON.stringify(communityData['user_self']));
+      renderHeader();
+      renderTree();
+    }
+  </script>
+</body>
+</html>
